@@ -1,13 +1,16 @@
 javascript:(
     function(){
-        var title = document.title;
-        var href = document.location.href;
-        var mdLink = '['+title+']'+'('+href+')';
+        let title = document.title;
+        let href = document.location.href;
+        let mdLink = '['+title+']'+'('+getCanonical()+')';
         alert(mdLink);
-        var text = document.createElement("textarea");
-        text.value = mdLink;
-        text.select();
-        document.execCommand("Copy");
-        text.parentNode.removeChild(text);
+
+        function getCanonical(){
+            try{
+                return document.querySelector('link[rel="canonical"]').href
+            }catch{
+                return document.location.href;
+            }
+        }
     }
 )();

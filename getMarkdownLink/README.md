@@ -1,8 +1,8 @@
 # 作成したブックマークレットの置き場
 
-## 1. get-md-link
+## 1. get-markdown-link
 ### 概要
-- 開いているページのタイトルとURLを **\[タイトル](url)** の形式でクリップボードにコピーする
+- 開いているページのタイトルとURLを **\[タイトル](url)** の形式で ~~クリップボードにコピーする~~ alertする
 - 参考：[Chrome Dev Toolでブックマークレットを実行する - Qiita](https://qiita.com/kanaxx/items/0fe8e7e2deea482960b0)
 ### issue
 - クリップボードに任意のStringをコピーすることができない
@@ -14,5 +14,6 @@
     document.execCommand("Copy");
     text.parentNode.removeChild(text);
 ```
+- クリップボード操作はいったんあきらめる
 ### 参考
 - [Chrome Dev Toolでブックマークレットを実行する - Qiita](https://qiita.com/kanaxx/items/0fe8e7e2deea482960b0)
