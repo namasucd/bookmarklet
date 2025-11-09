@@ -14,3 +14,10 @@
 - 開いているページのタイトルとURLを **\[タイトル](url)** の形式でクリップボードにコピーする
 - URLは`<link rel="canonical">`が存在する場合はそのhrefを優先的に使用
 - `navigator.clipboard.writeText()`を使用（モダンな方法）し、フォールバック機能も実装
+
+## github-convert-raw-readme
+### 概要
+- GitHubリポジトリのトップページで実行すると、そのリポジトリのREADME.mdを取得してクリップボードにコピーする
+- デフォルトブランチを自動検出（メタデータから取得、フォールバック機能付き）
+- `raw.githubusercontent.com`を使用してREADME.mdの生の内容を取得
+- コピーされる内容は、ページタイトル、README.mdの内容、ソースURLを含むMarkdown形式
