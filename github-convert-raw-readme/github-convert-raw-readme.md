@@ -14,8 +14,7 @@
 - デフォルトブランチをメタデータから取得（`meta[name="octolytics-dimension-repository_default_branch"]`）
 - フォールバックとして、ブランチ選択ボタンやファイルツリーリンクからも取得を試みる
 - デフォルトブランチでREADME.mdが見つからない場合、`main`と`master`も順に試す
-- `navigator.clipboard.writeText()`を使用（モダンな方法）
-- フォールバックとして`document.execCommand('copy')`方式も実装
+- `document.execCommand('copy')`方式を使用（ブックマークレットから確実に動作する）
 - `document.createElement("textarea")`でエレメントを作成（フォールバック時）
 - エレメントにStringを代入するときは`value`を使用（`textarea`の場合）
 - 作ったエレメントを`document.body.appendChild()`でDOMに入れる
@@ -75,16 +74,35 @@ const metaBranch = document.querySelector('meta[name="octolytics-dimension-repos
 - メタデータはページ構造に依存しないため、最も確実な方法
 - 複数の方法を試すことで、より堅牢なコードになる
 
+### navigator.clipboard.writeTextの問題
+**問題:**
+- `navigator.clipboard.writeText()`を使用しようとしたが、ブックマークレットから直接呼ぶと失敗する
+- エラー: `NotAllowedError: Failed to execute 'writeText' on 'Clipboard': Document is not focused`
+
+**試行:**
+- `window.focus()`を追加してページにフォーカスを戻す → 失敗
+- コンソールで単体テスト → 同じエラーが発生
+
+**原因:**
+- `navigator.clipboard.writeText()`は「ユーザー操作のコンテキスト内」で実行する必要がある
+- ブックマークレットの実行タイミングによっては、ページがフォーカスされていない状態になる
+- ブックマークレットから直接呼ぶと、ユーザー操作のコンテキストが失われる
+
+**解決:**
+- フォールバック方式（`document.execCommand('copy')`）を優先して使用
+- `execCommand`はブックマークレットからでも確実に動作する
+
+**学んだこと:**
+- ブックマークレットでは、モダンなAPI（`navigator.clipboard`）よりも古いAPI（`execCommand`）の方が確実に動作する場合がある
+- ユーザー操作のコンテキストが重要なAPIは、ブックマークレットから直接呼ぶのは難しい
+
 ## 修正予定
-- `textArea`のスタイル設定（`position: fixed` + `opacity: 0`）
-- `textArea.select()`の前に`focus()`を追加
 - エラーハンドリングの改善（`alert`以外の方法を検討）
 - URLの末尾スラッシュ処理
 - `document.title`のMarkdownエスケープ
-- `removeChild`のエラーハンドリング
 
 ## ワンライナー(ブックマークレット用)
 ```javascript
-javascript:(async function(){'use strict';if(window.location.pathname.match(/^\/[^\/]+\/[^\/]+$/)){try{let defaultBranch='main';const metaBranch=document.querySelector('meta[name="octolytics-dimension-repository_default_branch"]');if(metaBranch){const branchContent=metaBranch.getAttribute('content');if(branchContent){defaultBranch=branchContent;}}if(defaultBranch==='main'){const branchButton=document.querySelector('button[data-hotkey="w"]')||document.querySelector('summary[data-view-component="true"]')||document.querySelector('[data-testid="branch-selector"]');if(branchButton){const branchText=branchButton.textContent?.trim()||branchButton.querySelector('span')?.textContent?.trim()||branchButton.getAttribute('title');if(branchText&&branchText!=='Switch branches or tags'&&branchText.length<50){defaultBranch=branchText;}}}if(defaultBranch==='main'){const fileTreeLinks=document.querySelectorAll('a[href*="/tree/"]');for(const link of fileTreeLinks){const href=link.getAttribute('href');if(href){const branchMatch=href.match(/\/tree\/([^\/]+)/);if(branchMatch&&branchMatch[1]!=='main'&&branchMatch[1]!=='master'){defaultBranch=branchMatch[1];break;}}}}let response=null;const branchesToTry=[defaultBranch];if(defaultBranch!=='main'){branchesToTry.push('main');}if(defaultBranch!=='master'){branchesToTry.push('master');}for(const branch of branchesToTry){const rawUrl=window.location.href.replace('github.com','raw.githubusercontent.com')+`/${branch}/README.md`;response=await fetch(rawUrl);if(response.ok)break;}if(!response||!response.ok)throw new Error('README.mdが見つかりません');const content=await response.text();const markdown=`# ${document.title}\n\n${content}\n\nSource: ${window.location.href}`;try{await navigator.clipboard.writeText(markdown);}catch(err){const textArea=document.createElement('textarea');textArea.value=markdown;document.body.appendChild(textArea);textArea.select();document.execCommand('copy');document.body.removeChild(textArea);}alert('README.mdをクリップボードにコピーしました！');}catch(error){alert('エラー: '+error.message);}}else{alert('このページはGitHubリポジトリのトップページではありません。');}})();
+javascript:(async function(){'use strict';if(window.location.pathname.match(/^\/[^\/]+\/[^\/]+$/)){try{let defaultBranch='main';const metaBranch=document.querySelector('meta[name="octolytics-dimension-repository_default_branch"]');if(metaBranch){const branchContent=metaBranch.getAttribute('content');if(branchContent){defaultBranch=branchContent;}}if(defaultBranch==='main'){const branchButton=document.querySelector('button[data-hotkey="w"]')||document.querySelector('summary[data-view-component="true"]')||document.querySelector('[data-testid="branch-selector"]');if(branchButton){const branchText=branchButton.textContent?.trim()||branchButton.querySelector('span')?.textContent?.trim()||branchButton.getAttribute('title');if(branchText&&branchText!=='Switch branches or tags'&&branchText.length<50){defaultBranch=branchText;}}}if(defaultBranch==='main'){const fileTreeLinks=document.querySelectorAll('a[href*="/tree/"]');for(const link of fileTreeLinks){const href=link.getAttribute('href');if(href){const branchMatch=href.match(/\/tree\/([^\/]+)/);if(branchMatch&&branchMatch[1]!=='main'&&branchMatch[1]!=='master'){defaultBranch=branchMatch[1];break;}}}}let response=null;const branchesToTry=[defaultBranch];if(defaultBranch!=='main'){branchesToTry.push('main');}if(defaultBranch!=='master'){branchesToTry.push('master');}for(const branch of branchesToTry){const rawUrl=window.location.href.replace('github.com','raw.githubusercontent.com')+`/${branch}/README.md`;response=await fetch(rawUrl);if(response.ok)break;}if(!response||!response.ok)throw new Error('README.mdが見つかりません');const content=await response.text();const markdown=`# ${document.title}\n\n${content}\n\nSource: ${window.location.href}`;const textArea=document.createElement('textarea');textArea.style.position='fixed';textArea.style.opacity='0';textArea.value=markdown;document.body.appendChild(textArea);textArea.focus();textArea.select();document.execCommand('copy');if(textArea.parentNode){document.body.removeChild(textArea);}alert('README.mdをクリップボードにコピーしました！');}catch(error){alert('エラー: '+error.message);}}else{alert('このページはGitHubリポジトリのトップページではありません。');}})();
 ```
 
